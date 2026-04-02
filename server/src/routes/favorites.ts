@@ -61,7 +61,9 @@ router.post("/toggle", requireAuth, async (req: Request, res: Response) => {
 
   if (
     typeof product.name !== "string" ||
-    (product.platform !== "Amazon" && product.platform !== "Walmart") ||
+    (product.platform !== "Amazon" &&
+      product.platform !== "Walmart" &&
+      product.platform !== "Target") ||
     typeof product.price !== "number" ||
     (product.currency !== "INR" && product.currency !== "USD")
   ) {

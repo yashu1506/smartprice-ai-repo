@@ -1,6 +1,7 @@
 import { MongoClient, type Db } from "mongodb";
 
-const uriFromEnv = process.env.MONGODB_URI || "mongodb://localhost:27017";
+const uriFromEnv =
+  "mongodb+srv://yashvishahblobstation:It5spZAZLzkEBstJ@dev-cluster.oug8dlo.mongodb.net/";
 if (!uriFromEnv) {
   throw new Error("Missing MONGODB_URI in environment");
 }

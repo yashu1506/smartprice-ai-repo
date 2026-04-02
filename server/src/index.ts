@@ -5,6 +5,7 @@ import productsRouter from "./routes/products.js";
 import authRouter from "./routes/auth.js";
 import favoritesRouter from "./routes/favorites.js";
 import aiRouter from "./routes/ai.js";
+import getPricesRouter from "./routes/getPrices.js";
 import { connectMongo } from "./db/mongo.js";
 import { startPriceMonitorJob } from "./jobs/priceMonitor.js";
 
@@ -51,6 +52,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/favorites", favoritesRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api/getPrices", getPricesRouter);
 
 connectMongo()
   .then(() => {

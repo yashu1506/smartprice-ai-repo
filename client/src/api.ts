@@ -43,7 +43,9 @@ const mapRawProduct = (item: RawProduct, index: number): Product => {
     item.name ?? item.title ?? item.productName ?? `Product ${index + 1}`;
 
   const isListing =
-    (item.platform === "Amazon" || item.platform === "Walmart") &&
+    (item.platform === "Amazon" ||
+      item.platform === "Walmart" ||
+      item.platform === "Target") &&
     item.price != null &&
     item.price !== "";
 

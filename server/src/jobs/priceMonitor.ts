@@ -4,7 +4,10 @@ import { getDb } from "../db/mongo.js";
 import { searchProducts } from "../services/productSearchService.js";
 import { sendPriceChangeEmail } from "../utils/mailer.js";
 import { makeProductKey } from "../utils/productKey.js";
-import type { ProductCurrency, ProductPlatform } from "../utils/productTypes.js";
+import type {
+  ProductCurrency,
+  ProductPlatform,
+} from "../utils/productTypes.js";
 
 type StoredProduct = {
   name: string;
@@ -66,9 +69,12 @@ export function startPriceMonitorJob() {
       const db = getDb();
       const users = db.collection("users");
 
-      const cursor = users.find<
-        { _id: ObjectId; email: string; name?: string; favorites: FavoriteRow[] }
-      >(
+      const cursor = users.find<{
+        _id: ObjectId;
+        email: string;
+        name?: string;
+        favorites: FavoriteRow[];
+      }>(
         {},
         {
           projection: { email: 1, name: 1, favorites: 1 },
@@ -111,7 +117,9 @@ export function startPriceMonitorJob() {
             const listings = await searchProducts(current.name);
             const matching = listings
               .filter(
-                (l) => l.platform === current.platform && l.currency === current.currency,
+                (l) =>
+                  l.platform === current.platform &&
+                  l.currency === current.currency,
               )
               .sort((a, b) => a.price - b.price);
             const newPrice = matching[0]?.price ?? oldPrice;
@@ -194,4 +202,3 @@ export function startPriceMonitorJob() {
     }
   });
 }
-

@@ -11,7 +11,7 @@ export type ScrapedProduct = {
 export type ProductListing = {
   id: number;
   name: string;
-  platform: "Amazon" | "Walmart";
+  platform: "Amazon" | "Walmart" | "Target";
   price: number;
   currency: "INR" | "USD";
 };
@@ -127,6 +127,73 @@ async function scrapeWalmart(
   return listings;
 }
 
+async function scrapeTarget(
+  page: Page,
+  productName: string,
+): Promise<ProductListing[]> {
+  const url = `https://www.target.com/s?searchTerm=${encodeURIComponent(productName)}`;
+  await page.goto(url, { timeout: 60000, waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(7000);
+
+  await page.waitForSelector('a[href*="/p/"]', { timeout: 15000 });
+
+  const items = await page.$$eval("a[href*=\"/p/\"]", (nodeList) => {
+    const out: { name: string; priceText: string; link: string }[] = [];
+    const items = Array.from(nodeList).slice(0, 5);
+
+    for (const item of items) {
+      const parent = item.closest("div");
+      const tabindexEl = item.closest("[tabindex]");
+      const title =
+        item.textContent?.trim() ||
+        tabindexEl
+          ?.querySelector('[data-test="@web/ProductCard/title"]')
+          ?.textContent?.trim() ||
+        "";
+
+      const priceText =
+        parent
+          ?.querySelector('[data-test="@web/Price/PriceStandard"]')
+          ?.textContent?.trim() ||
+        parent?.querySelector('[data-test="current-price"]')?.textContent?.trim() ||
+        tabindexEl
+          ?.querySelector('[data-test="@web/Price/PriceStandard"]')
+          ?.textContent?.trim() ||
+        parent?.querySelector("span")?.textContent?.trim() ||
+        "";
+
+      const link =
+        item
+          ?.closest('[role="listitem"]')
+          ?.querySelector("a")?.href ||
+        (item as HTMLAnchorElement).href ||
+        "";
+
+      if (!title) continue;
+      out.push({ name: title, priceText, link });
+    }
+
+    return out;
+  });
+
+  const baseId = Date.now() + 100_000;
+  const listings: ProductListing[] = [];
+  let index = 0;
+  for (const item of items) {
+    const price = parsePriceToNumber(item.priceText);
+    if (price <= 0) continue;
+    listings.push({
+      id: baseId + index,
+      name: item.name,
+      platform: "Target",
+      price,
+      currency: "USD",
+    });
+    index++;
+  }
+  return listings;
+}
+
 export async function searchProducts(
   query: string,
   _productUrl?: string,
@@ -144,8 +211,8 @@ export async function searchProducts(
     });
 
     const page = await context.newPage();
-    const amazonRows = await scrapeAmazon(page, query);
 
+    const amazonRows = await scrapeAmazon(page, query);
     const amazonListings: ProductListing[] = amazonRows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -154,21 +221,19 @@ export async function searchProducts(
       currency: "INR",
     }));
 
-    let walmartListings: ProductListing[] = [];
+    let targetListings: ProductListing[] = [];
     try {
-      walmartListings = await scrapeWalmart(page, query);
-    } catch (walmartError) {
+      targetListings = await scrapeTarget(page, query);
+    } catch (targetError) {
       console.log(
-        "Walmart scraping failed:",
-        walmartError instanceof Error
-          ? walmartError.message
-          : String(walmartError),
+        "Target scraping failed:",
+        targetError instanceof Error ? targetError.message : String(targetError),
       );
     }
 
     await context.close();
 
-    return [...amazonListings, ...walmartListings];
+    return [...amazonListings, ...targetListings];
   } catch (error) {
     console.log(
       "Amazon scraping failed:",

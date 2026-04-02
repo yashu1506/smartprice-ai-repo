@@ -14,9 +14,12 @@ import ProductTable from "./components/ProductTable";
 import AuthModal from "./components/AuthModal";
 import { toggleFavoriteApi, getFavoritesApi, meApi, refreshFavoritesApi } from "./accountApi";
 import FavoritesPage from "./components/FavoritesPage";
+import PriceCompareApify from "./components/PriceCompareApify";
 import { getProductKey } from "./productKey";
+import { fetchAiSuggestions } from "./aiApi";
 import type {
   AppNotification,
+  AiSuggestion,
   CurrencyCode,
   NotificationType,
   Platform,
@@ -164,10 +167,12 @@ const App = memo(function App() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [page, setPage] = useState<"home" | "favorites">("home");
+  const [page, setPage] = useState<"home" | "favorites" | "compare">("home");
   const [favoriteHighlightKey, setFavoriteHighlightKey] = useState<
     string | null
   >(null);
+
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
 
   useEffect(() => {
     try {
@@ -378,6 +383,7 @@ const App = memo(function App() {
         searchProductsFromApi(name, url),
       onSuccess: (apiProducts) => {
         setProducts(apiProducts);
+        setAiSuggestions([]);
         setSelectedProductId(apiProducts[0]?.id ?? null);
         setProductName("");
         setProductUrl("");
@@ -385,6 +391,13 @@ const App = memo(function App() {
           `Loaded ${apiProducts.length} products from API`,
           "success",
         );
+
+        // AI suggestions (best buy across platforms)
+        fetchAiSuggestions(apiProducts)
+          .then((suggestions) => setAiSuggestions(suggestions))
+          .catch(() => {
+            // Keep UI silent if AI is unavailable
+          });
       },
       onError: (error) => {
         const message =
@@ -407,7 +420,7 @@ const App = memo(function App() {
 
   const headerSubtitle = useMemo(
     () =>
-      `Amazon.in & Walmart listings • ${products.length} offers loaded`,
+      `Amazon.in & Target listings • ${products.length} offers loaded`,
     [products.length],
   );
 
@@ -435,6 +448,12 @@ const App = memo(function App() {
               className="px-4 py-2 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
             >
               {isDark ? "☀️" : "🌙"}
+            </button>
+            <button
+              onClick={() => setPage("compare")}
+              className="px-5 py-2 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+            >
+              Target vs Amazon
             </button>
             <button
               onClick={() => setPage("favorites")}
@@ -468,7 +487,9 @@ const App = memo(function App() {
           </div>
         </div>
 
-        {page === "favorites" ? (
+        {page === "compare" ? (
+          <PriceCompareApify onBack={() => setPage("home")} />
+        ) : page === "favorites" ? (
           <FavoritesPage
             favorites={favorites}
             isLoggedIn={!!authToken}
@@ -515,8 +536,50 @@ const App = memo(function App() {
 
             <div className="mt-8">
               <h3 className="font-semibold mb-3">
-                Tracked Products (<span>{products.length}</span>)
+                AI Suggestions + Tracked Products (<span>{products.length}</span>)
               </h3>
+
+              {aiSuggestions.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  {aiSuggestions.slice(0, 5).map((s, idx) => (
+                    <div
+                      key={`${s.best.id}-${idx}`}
+                      className="p-3 rounded-2xl bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800/40"
+                    >
+                      <div className="text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                        AI Suggestion
+                      </div>
+                      <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 mt-1 line-clamp-2">
+                        {s.title}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
+                        {s.reason}
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="text-emerald-700 dark:text-emerald-300 font-bold">
+                          {formatListingPrice(s.best.price, s.best.currency)} @{" "}
+                          {s.best.platform}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setSelectedProductId(s.best.id)}
+                            className="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold"
+                          >
+                            Select
+                          </button>
+                          <button
+                            onClick={() => handleBuyBest(s.best.id)}
+                            className="px-3 py-1.5 rounded-xl bg-black dark:bg-gray-700 text-white text-xs font-semibold"
+                          >
+                            Buy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="space-y-3 max-h-[520px] overflow-auto pr-2">
                 {products.map((product) => (
                   <div

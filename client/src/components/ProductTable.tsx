@@ -15,6 +15,9 @@ function platformBadgeClass(platform: Product["platform"]): string {
   if (platform === "Amazon") {
     return "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200";
   }
+  if (platform === "Target") {
+    return "bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-900 dark:text-fuchsia-200";
+  }
   return "bg-sky-100 dark:bg-sky-900/40 text-sky-900 dark:text-sky-200";
 }
 

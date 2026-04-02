@@ -1,4 +1,4 @@
-export type Platform = "Amazon" | "Walmart";
+export type Platform = "Amazon" | "Walmart" | "Target";
 
 export type CurrencyCode = "INR" | "USD";
 
@@ -28,4 +28,16 @@ export type User = {
 export type FavoriteRow = {
   key: string;
   product: Product;
+};
+
+export type AiSuggestion = {
+  title: string;
+  reason: string;
+  best: {
+    id: number;
+    platform: Platform;
+    price: number;
+    currency: CurrencyCode;
+  };
+  matches: number[];
 };
