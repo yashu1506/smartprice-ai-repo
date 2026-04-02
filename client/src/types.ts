@@ -8,6 +8,8 @@ export type Product = {
   platform: Platform;
   price: number;
   currency: CurrencyCode;
+  /** Direct link to this listing on the retailer (from search scrape when available) */
+  productUrl?: string;
   history: number[];
   threshold: number;
 };

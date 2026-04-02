@@ -13,6 +13,7 @@ type StoredProduct = {
   platform: ProductPlatform;
   price: number;
   currency: ProductCurrency;
+  productUrl?: string;
   history?: number[];
   threshold?: number;
 };

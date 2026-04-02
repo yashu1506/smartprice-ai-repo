@@ -8,6 +8,7 @@ type RawProduct = {
   platform?: string;
   price?: number | string;
   currency?: string;
+  productUrl?: string;
   amazon?: number | string;
   walmart?: number | string;
   flipkart?: number | string;
@@ -61,6 +62,10 @@ const mapRawProduct = (item: RawProduct, index: number): Product => {
       platform,
       price: resolved,
       currency,
+      productUrl:
+        typeof item.productUrl === "string" && item.productUrl.startsWith("http")
+          ? item.productUrl
+          : undefined,
       history: buildHistory(Math.floor(resolved)),
       threshold: Math.floor(resolved * 0.9),
     };
@@ -101,12 +106,11 @@ const mapRawProduct = (item: RawProduct, index: number): Product => {
 
 export async function searchProductsFromApi(
   productName: string,
-  productUrl?: string,
 ): Promise<Product[]> {
   const response = await fetch(SEARCH_PRODUCTS_API, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: productName, productUrl }),
+    body: JSON.stringify({ query: productName }),
   });
 
   if (!response.ok) {

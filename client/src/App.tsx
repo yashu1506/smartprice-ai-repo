@@ -14,8 +14,8 @@ import ProductTable from "./components/ProductTable";
 import AuthModal from "./components/AuthModal";
 import { toggleFavoriteApi, getFavoritesApi, meApi, refreshFavoritesApi } from "./accountApi";
 import FavoritesPage from "./components/FavoritesPage";
-import PriceCompareApify from "./components/PriceCompareApify";
 import { getProductKey } from "./productKey";
+import { openProductBuyPage } from "./buyUrl";
 import { fetchAiSuggestions } from "./aiApi";
 import type {
   AppNotification,
@@ -54,6 +54,7 @@ type LegacyStoredProduct = {
   platform?: Platform;
   price?: number;
   currency?: CurrencyCode;
+  productUrl?: string;
 };
 
 function migrateProductRow(
@@ -74,6 +75,7 @@ function migrateProductRow(
       platform: item.platform,
       price: resolved,
       currency,
+      productUrl: item.productUrl,
       history:
         Array.isArray(item.history) && item.history.length > 0
           ? item.history
@@ -108,6 +110,7 @@ function migrateProductRow(
     platform: best.platform,
     price,
     currency: "INR",
+    productUrl: item.productUrl,
     history:
       Array.isArray(item.history) && item.history.length > 0
         ? item.history
@@ -141,7 +144,6 @@ const App = memo(function App() {
   );
   const [search, setSearch] = useState("");
   const [productName, setProductName] = useState("");
-  const [productUrl, setProductUrl] = useState("");
   const [isDark, setIsDark] = useState(readStoredDarkMode);
   const [notification, setNotification] = useState<AppNotification>(null);
 
@@ -167,7 +169,7 @@ const App = memo(function App() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [page, setPage] = useState<"home" | "favorites" | "compare">("home");
+  const [page, setPage] = useState<"home" | "favorites">("home");
   const [favoriteHighlightKey, setFavoriteHighlightKey] = useState<
     string | null
   >(null);
@@ -328,9 +330,9 @@ const App = memo(function App() {
       const product = products.find((item) => item.id === id);
       if (!product) return;
 
-      window.alert("Redirecting to the best available deal... (Demo Mode)");
+      openProductBuyPage(product);
       showNotification(
-        `${product.platform}: ${formatListingPrice(product.price, product.currency)}`,
+        `Opening ${product.platform} — ${formatListingPrice(product.price, product.currency)}`,
         "info",
       );
     },
@@ -379,14 +381,12 @@ const App = memo(function App() {
 
   const { mutate: captureAndTrackProducts, isPending: isCapturingProducts } =
     useMutation({
-      mutationFn: ({ name, url }: { name: string; url?: string }) =>
-        searchProductsFromApi(name, url),
+      mutationFn: ({ name }: { name: string }) => searchProductsFromApi(name),
       onSuccess: (apiProducts) => {
         setProducts(apiProducts);
         setAiSuggestions([]);
         setSelectedProductId(apiProducts[0]?.id ?? null);
         setProductName("");
-        setProductUrl("");
         showNotification(
           `Loaded ${apiProducts.length} products from API`,
           "success",
@@ -415,8 +415,8 @@ const App = memo(function App() {
       return;
     }
 
-    captureAndTrackProducts({ name, url: productUrl.trim() || undefined });
-  }, [captureAndTrackProducts, productName, productUrl]);
+    captureAndTrackProducts({ name });
+  }, [captureAndTrackProducts, productName]);
 
   const headerSubtitle = useMemo(
     () =>
@@ -450,12 +450,6 @@ const App = memo(function App() {
               {isDark ? "☀️" : "🌙"}
             </button>
             <button
-              onClick={() => setPage("compare")}
-              className="px-5 py-2 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-            >
-              Target vs Amazon
-            </button>
-            <button
               onClick={() => setPage("favorites")}
               className="px-5 py-2 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
             >
@@ -487,9 +481,7 @@ const App = memo(function App() {
           </div>
         </div>
 
-        {page === "compare" ? (
-          <PriceCompareApify onBack={() => setPage("home")} />
-        ) : page === "favorites" ? (
+        {page === "favorites" ? (
           <FavoritesPage
             favorites={favorites}
             isLoggedIn={!!authToken}
@@ -513,14 +505,6 @@ const App = memo(function App() {
               onChange={(event) => setProductName(event.target.value)}
               type="text"
               placeholder="Product Name"
-              className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 mb-3 focus:outline-none focus:border-violet-400"
-            />
-
-            <input
-              value={productUrl}
-              onChange={(event) => setProductUrl(event.target.value)}
-              type="text"
-              placeholder="Paste Product URL (optional)"
               className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 mb-4 focus:outline-none focus:border-violet-400"
             />
 
@@ -690,7 +674,15 @@ const App = memo(function App() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => handleBuyBest(selectedProduct.id)}
+                        className="w-full py-3 rounded-2xl bg-black dark:bg-gray-700 text-white font-semibold hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        Buy on {selectedProduct.platform}
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl">
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           Alert Threshold

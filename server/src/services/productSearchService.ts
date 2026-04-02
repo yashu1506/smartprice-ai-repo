@@ -6,6 +6,8 @@ export type ScrapedProduct = {
   amazon: number;
   walmart: number;
   flipkart: number;
+  /** Product page URL from search results when available */
+  productUrl?: string;
 };
 
 export type ProductListing = {
@@ -14,6 +16,8 @@ export type ProductListing = {
   platform: "Amazon" | "Walmart" | "Target";
   price: number;
   currency: "INR" | "USD";
+  /** Link to open this listing on the retailer site */
+  productUrl?: string;
 };
 
 const withNoise = (price: number, factor: number): number =>
@@ -42,7 +46,7 @@ async function scrapeAmazon(
   const items = await page.$$eval(
     '.s-result-item[data-component-type="s-search-result"]',
     (results) => {
-      const out: { name: string; price: string }[] = [];
+      const out: { name: string; price: string; link: string }[] = [];
       for (const item of results) {
         const name = item.querySelector("h2 span")?.textContent?.trim();
         const whole = item
@@ -56,7 +60,11 @@ async function scrapeAmazon(
           fraction != null && fraction !== ""
             ? `${whole.replace(/,/g, "")}.${fraction}`
             : whole;
-        out.push({ name, price });
+        const linkEl =
+          item.querySelector("h2 a") ??
+          item.closest('[role="listitem"]')?.querySelector("a");
+        const link = (linkEl as HTMLAnchorElement | null)?.href ?? "";
+        out.push({ name, price, link });
         if (out.length >= 8) break;
       }
       return out;
@@ -69,6 +77,7 @@ async function scrapeAmazon(
       id: Date.now() + index,
       name: item.name,
       amazon,
+      productUrl: item.link || undefined,
       // Derived placeholders until Walmart/Flipkart scrapers are added.
       walmart: withNoise(amazon, 0.98),
       flipkart: withNoise(amazon, 1.03),
@@ -91,7 +100,7 @@ async function scrapeWalmart(
   }
 
   const parsed = await page.$$eval("[data-item-id]", (elements) => {
-    const out: { name: string; priceText: string }[] = [];
+    const out: { name: string; priceText: string; link: string }[] = [];
     for (const el of elements) {
       const titleEl =
         el.querySelector('[data-automation-id="product-title"]') ??
@@ -101,11 +110,20 @@ async function scrapeWalmart(
         el.querySelector('[itemprop="price"]');
       const name = titleEl?.textContent?.trim();
       const priceText = priceEl?.textContent?.trim() ?? "";
+      let link = "";
+      if (titleEl && titleEl instanceof HTMLAnchorElement && titleEl.href) {
+        link = titleEl.href;
+      } else {
+        const ip =
+          el.querySelector('a[href*="/ip/"]') ??
+          el.querySelector('a[href*="walmart.com"]');
+        link = (ip as HTMLAnchorElement | null)?.href ?? "";
+      }
       if (!name || name.length < 4) continue;
       if (!priceText || /see price|out of stock|unavailable/i.test(priceText)) {
         continue;
       }
-      out.push({ name, priceText });
+      out.push({ name, priceText, link });
       if (out.length >= 8) break;
     }
     return out;
@@ -122,6 +140,7 @@ async function scrapeWalmart(
       platform: "Walmart",
       price,
       currency: "USD",
+      productUrl: item.link || undefined,
     });
   });
   return listings;
@@ -188,6 +207,7 @@ async function scrapeTarget(
       platform: "Target",
       price,
       currency: "USD",
+      productUrl: item.link || undefined,
     });
     index++;
   }
@@ -219,6 +239,7 @@ export async function searchProducts(
       platform: "Amazon",
       price: row.amazon,
       currency: "INR",
+      productUrl: row.productUrl,
     }));
 
     let targetListings: ProductListing[] = [];
